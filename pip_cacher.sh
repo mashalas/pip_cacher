@@ -1,16 +1,21 @@
 #!/bin/sh
 
+CACHER_ROOT_DIR=$PWD/_cacher
+#CACHER_ROOT_DIR=/tmp/_cacher.${USER}
+
 usage()
 {
   echo "pip_cacher.sh [flags] <module>"
   echo "  flag:"
-  echo "    -h|--help      print this help"
-  echo "    -d|--download  only download without installation"
-  echo "    -i|--install   install downloaded module"
-  echo "    -b|--both      download and install"
+  echo "    -h|--help             print this help"
+  echo "    -d|--download         only download without installation"
+  echo "    -i|--install          install downloaded module"
+  echo "    -p|--proxy <proxy>    Specify a proxy in the form"
+  echo "                          [user:passwd@]proxy.server:port"
+  echo "    -v|--verbose          verbose mode"
   echo " examples:"
   echo "   pip_cacher.sh pands           download and install module pandas"
-  echo "   pip_cacher --download pands   only download module pandas"
+  echo "   pip_cacher --download -p 10.20.30.34:3128 pands   only download module pandas through proxy"
 }
 
 # +++ Проверка на root-овость +++
@@ -49,64 +54,77 @@ then
 fi
 
 # +++ Разбор параметров +++
-if [ "$1" == "" ]
-then
-  usage
-  exit
-fi
-if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$1" == "-help" ]
-then
-  usage
-  exit
-fi
 download_flag=0
 install_flag=0
-module=-
-if [ "$1" == "-d" ] || [ "$1" == "--download" ]
+verbose_flag=0
+proxy=""
+module=""
+while :; do
+  case "${1-}" in
+  -h | --help | -help) usage ;;
+  -d | --download) download_flag=1 ;; # do download
+  -i | --install) install_flag=1 ;; # do install
+  -p | --proxy) # example named parameter
+    proxy="${2-}"
+    shift
+     ;;
+  -v | --verbose) verbose_flag=1 ;; # verbose mode
+  -?*)
+    echo "ERROR: unknown option: $1"
+    exit 1
+    ;;
+  *) break ;;
+  esac
+  shift
+done
+
+# поместить в args[] оставшиеся параметры, которые указаны без минуса перед именем параметра
+args=("$@")
+#echo "- arguments: ${args[*]-}"
+
+module=${args[0]-}
+
+# если не указано ни скачать, ни установить, то подразумеваем оба действия
+if [ "$download_flag" == "0" ] && [ "$install_flag" == "0" ]
 then
   download_flag=1
-fi
-if [ "$1" == "-i" ] || [ "$1" == "--install" ]
-then
   install_flag=1
 fi
-if [ "$1" == "-b" ] || [ "$1" == "--both" ]
+#echo $download_flag $install_flag [$proxy] [$module]
+
+#if [ "$modile" == "-" ]
+if [ -z $module ]
 then
-  download_flag=1
-  install_flag=1
-fi
-if [ "$2" == "" ] && [ ! "$1" == "" ] && [ "$download_flag" == "0" ] && [ "$install_flag" == "0" ]
-then
-  # указан только один параметр - это имя модуля, скачать и установить модуль
-  echo qqqqqq
-  download_flag=1
-  install_flag=1
-  module=$1
-fi
-if [ "$2" != "" ]
-then
-  module=$2
-fi
-if [ "$modile" == "-" ]
-then
-  echo module not specified
+  # не указан модуль
+  echo ERROR: module not specified!
   usage
   exit
 fi
-echo $download_flag $install_flag $module
+echo Parsed parameters: [download_flag=$download_flag] [install_flag=$install_flag] [verbose_flag=$verbose_flag] [proxy=$proxy] [module=$module]
 
-modules_root_dir=$PWD/_modules
-logs_dir=$modules_root_dir/_logs
-cache_dir=$modules_root_dir/_cache
-module_dir=$modules_root_dir/$module
+#modules_root_dir=$CACHER_ROOT_DIR/_modules
+logs_dir=$CACHER_ROOT_DIR/_logs
+cache_dir=$CACHER_ROOT_DIR/_cache
+module_dir=$CACHER_ROOT_DIR/$module
 save_dir=$PWD
 
-download_cmd="pip3 download --verbose --log $logs_dir/${module}_download.log --cache-dir $cache_dir $module"
+download_cmd="pip3 download --log $logs_dir/${module}_download.log --cache-dir $cache_dir"
+if [ $verbose_flag -eq 1 ]; then download_cmd="$download_cmd --verbose"; fi
+if [ ! -z $proxy ]; then download_cmd="${download_cmd} --proxy $proxy"; fi
+#if [ $verbose_flag -eq 1 ]
+#then
+#  download_cmd="$download_cmd --verbose"
+#fi
+#if [ ! -z $proxy ]
+#then
+#  download_cmd="${download_cmd} --proxy $proxy"
+#fi
+download_cmd="${download_cmd} $module"
 install_cmd="python -m pip install --no-index --find-links $module_dir $module"
 
-if [ "$download_flag" == "1" ]
+if [ $download_flag -eq 1 ]
 then
-  if [ ! -d $modules_root_dir ] ; then mkdir $modules_root_dir ; fi
+  if [ ! -d $CACHER_ROOT_DIR ] ; then mkdir $CACHER_ROOT_DIR ; fi
   if [ ! -d $logs_dir ] ; then mkdir $logs_dir ; fi
   if [ ! -d $cache_dir ] ; then mkdir $cache_dir ; fi
   if [ ! -d $module_dir ] ; then mkdir $module_dir ; fi
@@ -115,7 +133,7 @@ then
   cd $save_dir
 fi
 
-if [ "$install_flag" == "1" ]
+if [ $install_flag -eq 1 ]
 then
   if [ ! -d $module_dir ]
   then
@@ -125,8 +143,7 @@ then
   $install_cmd
 fi
 
-cd $save_dir
-echo -----------------------------------
+echo -------- $module_dir ---------------------------
 ls $module_dir
 echo ----------------------------------
 echo MODULE: $module
@@ -135,3 +152,6 @@ echo INSTALL: $install_cmd
 echo ----------------------------------
 
 # WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+#DOWNLOAD:	pip3 download --verbose --log /tmp/_cacher/_logs/six_download.log --cache-dir /tmp/_cacher/_cache --proxy 180.210.189.65:8080 six
+#INSTALL:	python -m pip install --no-index --find-links /tmp/_cacher/six six
+#UPGRADE_PIP:	python -m pip install --upgrade pip
