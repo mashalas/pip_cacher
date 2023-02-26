@@ -2,7 +2,7 @@
 
 export env_dir=./env
 #export modules=(six)
-export modules=(six numpy seaborn pandas matplotlib)
+export modules=(six numpy seaborn pandas matplotlib scikit-learn jupyter)
 
 if [ ! -d $env_dir ]
 then
@@ -66,3 +66,6 @@ done
 
 pip list
 which python
+python sklearn_sample.py
+
+jupyter-notebook &
