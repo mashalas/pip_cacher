@@ -10,7 +10,7 @@ sudo ./pip_cacher.sh numpy			- скачать и установить модул
 
 ./cacher_with_requirements.sh - скачать перечисленные в этом файле пакеты.  
 
-download_with_docker.sh - создать временный контейнер, который скачает пакеты в каталог проброшенный в контейнер
+./download_with_docker.sh - создать временный контейнер, который скачает пакеты в каталог проброшенный в контейнер. Зависимости можно указать передав имя файла, создав файл requirements в текущем каталоге или перчислить зависимости в самом shell-скрипте
 
 Примеры команд на скачивание и установку:  
 DOWNLOAD: pip3 download --verbose --log /tmp/_modules/_modules/_logs/requests_download.log --cache-dir /tmp/_modules/_modules/_cache requests  
